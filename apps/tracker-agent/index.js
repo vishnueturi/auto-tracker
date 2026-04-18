@@ -1,7 +1,9 @@
 let activeWin;
 try {
   activeWin = require('active-win');
-} catch (error) {}
+} catch (error) {
+  // Sample comment: allow the agent to continue with fallback window data when active-win is unavailable.
+}
 
 const {
   POLL_INTERVAL_SEC,
