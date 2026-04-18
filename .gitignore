@@ -4,6 +4,10 @@ package-lock.json
 
 # Runtime data
 data/sessions.json
+data/merged-sessions.json
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
 
 # Logs
 logs/

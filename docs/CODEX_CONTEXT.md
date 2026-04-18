@@ -52,15 +52,15 @@ Pro tracker engine:
 - production-grade local tracking
 
 ## Current State of Code
-Tracker currently uses JSON-based local logs / merged sessions as intermediate storage. SQLite schema exists but runtime is not fully wired yet.
+Tracker is now being migrated off JSON-based local logs into a SQLite-backed merged-session runtime. Legacy JSON data may still exist in `data/` from earlier runs.
 
 Dashboard currently returns JSON summaries rather than polished UI.
 
 ## Immediate Next Priorities (Do These Next)
-1. Wire tracker-agent to `packages/db/sessionStore.js`
-2. Replace raw event spam with merged session writes
-3. Integrate real SQLite runtime (`better-sqlite3` preferred)
-4. Update dashboard to read SQLite summaries
+1. Verify tracker-agent writes merged sessions into SQLite consistently
+2. Verify dashboard reads SQLite summaries correctly
+3. Add idle detection later
+4. Improve dashboard UI beyond raw JSON
 5. Close issue #5 when stable
 
 ## Recommended Technical Decisions

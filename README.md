@@ -16,12 +16,12 @@ Measure real work, reduce distraction, and compare actual effort against weekly 
 ## Tech Stack
 - Node.js
 - React + Vite
-- JSON now, SQLite next
+- SQLite (`better-sqlite3`)
 - active-win
 
 ## Run Locally
 ```bash
-npm install active-win
+npm install
 npm run dev:tracker
 npm run dev:dashboard
 ```

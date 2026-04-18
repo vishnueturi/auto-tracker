@@ -1,14 +1,15 @@
-const fs = require('fs');
-const path = require('path');
 let activeWin;
-try { activeWin = require('active-win'); } catch (e) {}
+try {
+  activeWin = require('active-win');
+} catch (error) {}
 
-const dataDir = path.join(process.cwd(), 'data');
-const logFile = path.join(dataDir, 'sessions.json');
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-if (!fs.existsSync(logFile)) fs.writeFileSync(logFile, '[]');
+const {
+  POLL_INTERVAL_SEC,
+  dbFile,
+  upsert,
+} = require('../../packages/db/sessionStore');
 
-function categorize(app, title='') {
+function categorize(app, title = '') {
   const text = `${app} ${title}`.toLowerCase();
   if (text.includes('leetcode')) return 'DSA';
   if (text.includes('visual studio') || text.includes('code.exe') || text.includes('vscode')) return 'Coding';
@@ -19,30 +20,36 @@ function categorize(app, title='') {
 
 async function getWindow() {
   if (activeWin) {
-    const w = await activeWin();
-    if (w) {
+    const windowInfo = await activeWin();
+    if (windowInfo) {
       return {
-        app: w.owner && w.owner.name ? w.owner.name : 'Unknown',
-        title: w.title || '',
+        app: windowInfo.owner && windowInfo.owner.name ? windowInfo.owner.name : 'Unknown',
+        title: windowInfo.title || '',
       };
     }
   }
+
   return { app: 'Google Chrome', title: 'Fallback Mock Window' };
 }
 
 async function tick() {
-  const rows = JSON.parse(fs.readFileSync(logFile, 'utf8'));
-  const w = await getWindow();
-  rows.push({
-    app: w.app,
-    title: w.title,
-    category: categorize(w.app, w.title),
-    ts: new Date().toISOString()
+  const windowInfo = await getWindow();
+  const session = upsert({
+    app: windowInfo.app,
+    title: windowInfo.title,
+    category: categorize(windowInfo.app, windowInfo.title),
+    ts: new Date().toISOString(),
   });
-  fs.writeFileSync(logFile, JSON.stringify(rows, null, 2));
-  console.log('tracked:', w.app, '-', w.title);
+
+  console.log(
+    'tracked:',
+    session.app,
+    '-',
+    session.title,
+    `(${session.category}, ${session.durationSec}s)`
+  );
 }
 
-console.log('Auto Tracker Agent started');
-setInterval(() => tick().catch(console.error), 20000);
-tick();
+console.log(`Auto Tracker Agent started (SQLite: ${dbFile})`);
+setInterval(() => tick().catch(console.error), POLL_INTERVAL_SEC * 1000);
+tick().catch(console.error);
