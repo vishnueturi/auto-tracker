@@ -8,16 +8,24 @@ Measure real work, reduce distraction, and compare actual effort against weekly 
 ## MVP Features
 - Background active app tracking
 - Session-based time logging
-- Local SQLite storage
+- Local storage
 - Rule-based categorization
 - Daily summary dashboard
 - Weekly target progress
 
 ## Tech Stack
-- Node.js + TypeScript
+- Node.js
 - React + Vite
-- SQLite
+- JSON now, SQLite next
 - active-win
+
+## Run Locally
+```bash
+npm install active-win
+npm run dev:tracker
+npm run dev:dashboard
+```
+Open http://localhost:3000
 
 ## Repository Structure
 ```text
@@ -30,13 +38,6 @@ packages/
   rules/
 docs/
 ```
-
-## Milestones
-1. Build tracker agent
-2. Persist sessions
-3. Build dashboard
-4. Weekly plan engine
-5. AI insights later
 
 ## Principles
 - Local-first
