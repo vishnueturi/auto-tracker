@@ -1,0 +1,10 @@
+{
+  "name": "auto-tracker",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev:tracker": "node apps/tracker-agent/index.js",
+    "dev:dashboard": "node apps/dashboard/server.js"
+  }
+}
