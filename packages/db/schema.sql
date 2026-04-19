@@ -6,5 +6,14 @@ CREATE TABLE IF NOT EXISTS sessions (
   start_time TEXT NOT NULL,
   end_time TEXT NOT NULL,
   duration_sec INTEGER NOT NULL,
+  is_idle INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS goals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  week_start TEXT NOT NULL,
+  category TEXT NOT NULL,
+  target_minutes INTEGER NOT NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
