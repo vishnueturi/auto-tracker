@@ -18,3 +18,18 @@ CREATE TABLE IF NOT EXISTS goals (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS classification_rules (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pattern TEXT NOT NULL,
+  source TEXT NOT NULL,
+  match_type TEXT NOT NULL,
+  category TEXT NOT NULL,
+  priority INTEGER DEFAULT 100,
+  is_active INTEGER DEFAULT 1,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_rules_active_priority
+  ON classification_rules(is_active, priority);

@@ -7,14 +7,7 @@ const {
   dbFile,
   upsert,
 } = require("../../packages/db/sessionStore");
-function categorize(app, title = "") {
-  const t = (app + " " + title).toLowerCase();
-  if (t.includes("leetcode")) return "DSA";
-  if (t.includes("code") || t.includes("visual studio")) return "Coding";
-  if (t.includes("react")) return "Learning";
-  if (t.includes("youtube")) return "Entertainment";
-  return "General";
-}
+const { classifySession } = require("../../backend/services/classifier");
 async function getWindow() {
   if (activeWin) {
     const w = await activeWin();
@@ -31,10 +24,11 @@ async function tick() {
   else idleCount = 0;
   lastSig = sig;
   const isIdle = idleCount >= 15;
+  const classification = classifySession({ app: w.app, title: w.title });
   const s = upsert({
     app: w.app,
     title: w.title,
-    category: categorize(w.app, w.title),
+    category: classification.category,
     ts: new Date().toISOString(),
     isIdle,
   });

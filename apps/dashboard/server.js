@@ -2,6 +2,7 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { handleGoalsRoute } = require("../../backend/routes/goals");
+const { handleRulesRoute } = require("../../backend/routes/rules");
 const { getSummary, getWeekSummary } = require("../../packages/db/sessionStore");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -236,6 +237,19 @@ function renderDashboard() {
           }
         </article>
         <article class="panel">
+          <h2>Categories</h2>
+          ${
+            today.categoryTotals.length
+              ? `<ul>${today.categoryTotals
+                  .map(
+                    (row) =>
+                      `<li>${escapeHtml(row.category)}: ${minutes(row.durationSec)} mins</li>`,
+                  )
+                  .join("")}</ul>`
+              : '<p class="muted">No category totals yet.</p>'
+          }
+        </article>
+        <article class="panel">
           <h2>Week</h2>
           ${
             week.length
@@ -273,12 +287,21 @@ async function requestHandler(req, res) {
     return;
   }
 
+  if (url.pathname === "/api/categories") {
+    json(res, 200, { ok: true, data: getSummary().categoryTotals });
+    return;
+  }
+
   if (url.pathname === "/api/week") {
     json(res, 200, getWeekSummary());
     return;
   }
 
   if (await handleGoalsRoute(req, res, url)) {
+    return;
+  }
+
+  if (await handleRulesRoute(req, res, url)) {
     return;
   }
 

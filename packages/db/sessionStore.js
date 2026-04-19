@@ -90,12 +90,165 @@ function ensureGoalsSchema() {
   migrateGoals();
 }
 
+function ensureRulesSchema() {
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_rules_active_priority ON classification_rules(is_active, priority)",
+  );
+}
+
 function migrate() {
   ensureSessionColumns();
   ensureGoalsSchema();
+  ensureRulesSchema();
 }
 
 migrate();
+
+const defaultRules = [
+  {
+    pattern: "leetcode",
+    source: "title",
+    match_type: "contains",
+    category: "Preparation",
+    priority: 10,
+  },
+  {
+    pattern: "hackerrank",
+    source: "title",
+    match_type: "contains",
+    category: "Preparation",
+    priority: 10,
+  },
+  {
+    pattern: "geeksforgeeks",
+    source: "title",
+    match_type: "contains",
+    category: "Preparation",
+    priority: 10,
+  },
+  {
+    pattern: "linkedin jobs",
+    source: "title",
+    match_type: "contains",
+    category: "Job Search",
+    priority: 20,
+  },
+  {
+    pattern: "naukri",
+    source: "title",
+    match_type: "contains",
+    category: "Job Search",
+    priority: 20,
+  },
+  {
+    pattern: "indeed",
+    source: "title",
+    match_type: "contains",
+    category: "Job Search",
+    priority: 20,
+  },
+  {
+    pattern: "wellfound",
+    source: "title",
+    match_type: "contains",
+    category: "Job Search",
+    priority: 20,
+  },
+  {
+    pattern: "youtube",
+    source: "title",
+    match_type: "contains",
+    category: "Entertainment",
+    priority: 30,
+  },
+  {
+    pattern: "netflix",
+    source: "title",
+    match_type: "contains",
+    category: "Entertainment",
+    priority: 30,
+  },
+  {
+    pattern: "prime video",
+    source: "title",
+    match_type: "contains",
+    category: "Entertainment",
+    priority: 30,
+  },
+  {
+    pattern: "teams",
+    source: "app",
+    match_type: "contains",
+    category: "Office Work",
+    priority: 40,
+  },
+  {
+    pattern: "outlook",
+    source: "app",
+    match_type: "contains",
+    category: "Office Work",
+    priority: 40,
+  },
+  {
+    pattern: "slack",
+    source: "app",
+    match_type: "contains",
+    category: "Office Work",
+    priority: 40,
+  },
+  {
+    pattern: "visual studio code",
+    source: "app",
+    match_type: "contains",
+    category: "Personal Project",
+    priority: 50,
+  },
+  {
+    pattern: "auto-tracker",
+    source: "title",
+    match_type: "contains",
+    category: "Personal Project",
+    priority: 50,
+  },
+];
+
+function seedDefaultRules() {
+  const ruleCount = db.prepare("SELECT COUNT(*) count FROM classification_rules").get().count;
+
+  if (ruleCount > 0) {
+    return;
+  }
+
+  const insertRule = db.prepare(
+    `
+      INSERT INTO classification_rules (
+        pattern,
+        source,
+        match_type,
+        category,
+        priority,
+        is_active
+      )
+      VALUES (?, ?, ?, ?, ?, 1)
+    `,
+  );
+
+  const seedRules = db.transaction(() => {
+    for (const rule of defaultRules) {
+      insertRule.run(
+        rule.pattern,
+        rule.source,
+        rule.match_type,
+        rule.category,
+        rule.priority,
+      );
+    }
+  });
+
+  seedRules();
+}
+
+seedDefaultRules();
 
 function todayKey(now = new Date()) {
   const year = now.getFullYear();
@@ -176,6 +329,10 @@ function getSummary(date = todayKey()) {
     summary[row.category] = (summary[row.category] || 0) + row.duration_sec;
   }
 
+  const categoryTotals = Object.entries(summary)
+    .map(([category, durationSec]) => ({ category, durationSec }))
+    .sort((a, b) => b.durationSec - a.durationSec);
+
   const topApps = db
     .prepare(
       `
@@ -196,6 +353,7 @@ function getSummary(date = todayKey()) {
     idleDurationSec,
     productiveDurationSec: totalDurationSec - idleDurationSec,
     summary,
+    categoryTotals,
     topApps,
     rows,
   };
@@ -287,6 +445,116 @@ function getGoalProgress(date = todayKey()) {
   });
 }
 
+function listRules({ activeOnly = false } = {}) {
+  const activeClause = activeOnly ? "WHERE is_active = 1" : "";
+
+  return db
+    .prepare(
+      `
+        SELECT
+          id,
+          pattern,
+          source,
+          match_type,
+          category,
+          priority,
+          is_active,
+          created_at,
+          updated_at
+        FROM classification_rules
+        ${activeClause}
+        ORDER BY
+          CASE match_type WHEN 'exact' THEN 0 ELSE 1 END,
+          priority ASC,
+          CASE source WHEN 'domain' THEN 0 WHEN 'title' THEN 1 ELSE 2 END,
+          id ASC
+      `,
+    )
+    .all();
+}
+
+function getRule(id) {
+  return db
+    .prepare(
+      `
+        SELECT
+          id,
+          pattern,
+          source,
+          match_type,
+          category,
+          priority,
+          is_active,
+          created_at,
+          updated_at
+        FROM classification_rules
+        WHERE id = ?
+      `,
+    )
+    .get(id);
+}
+
+function createRule(rule) {
+  const result = db
+    .prepare(
+      `
+        INSERT INTO classification_rules (
+          pattern,
+          source,
+          match_type,
+          category,
+          priority,
+          is_active,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `,
+    )
+    .run(
+      rule.pattern,
+      rule.source,
+      rule.matchType,
+      rule.category,
+      rule.priority,
+      rule.isActive,
+    );
+
+  return getRule(result.lastInsertRowid);
+}
+
+function updateRule(id, rule) {
+  const result = db
+    .prepare(
+      `
+        UPDATE classification_rules
+        SET
+          pattern = ?,
+          source = ?,
+          match_type = ?,
+          category = ?,
+          priority = ?,
+          is_active = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `,
+    )
+    .run(
+      rule.pattern,
+      rule.source,
+      rule.matchType,
+      rule.category,
+      rule.priority,
+      rule.isActive,
+      id,
+    );
+
+  return result.changes > 0 ? getRule(id) : null;
+}
+
+function deleteRule(id) {
+  return db.prepare("DELETE FROM classification_rules WHERE id = ?").run(id).changes > 0;
+}
+
 module.exports = {
   POLL_INTERVAL_SEC,
   dbFile,
@@ -296,5 +564,10 @@ module.exports = {
   listGoals,
   saveGoal,
   getGoalProgress,
+  listRules,
+  getRule,
+  createRule,
+  updateRule,
+  deleteRule,
   todayKey,
 };
