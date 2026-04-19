@@ -1,14 +1,110 @@
-const fs = require('fs');
-const path = require('path');
-const Database = require('better-sqlite3');
+const fs = require("fs");
+const path = require("path");
+const Database = require("better-sqlite3");
 const POLL_INTERVAL_SEC = 20;
-const rootDir = process.cwd(); const dataDir = path.join(rootDir,'data'); if(!fs.existsSync(dataDir)) fs.mkdirSync(dataDir,{recursive:true});
-const dbFile = path.join(dataDir,'tracker.sqlite'); const schemaFile = path.join(rootDir,'packages','db','schema.sql');
-const db=new Database(dbFile); db.pragma('journal_mode = WAL'); db.exec(fs.readFileSync(schemaFile,'utf8'));
-function todayKey(now=new Date()){return now.toISOString().slice(0,10)}
-function upsert(e){const ts=(e.ts||new Date()).toString?new Date(e.ts||new Date()).toISOString():new Date().toISOString(); const last=db.prepare('SELECT * FROM sessions ORDER BY id DESC LIMIT 1').get(); if(last&&last.app_name===e.app&&last.window_title===e.title&&last.category===e.category&&last.is_idle===Number(!!e.isIdle)){const dur=Math.max(POLL_INTERVAL_SEC,Math.round((new Date(ts)-new Date(last.start_time))/1000)); db.prepare('UPDATE sessions SET end_time=?, duration_sec=? WHERE id=?').run(ts,dur,last.id);} else {db.prepare('INSERT INTO sessions(app_name,window_title,category,start_time,end_time,duration_sec,is_idle) VALUES (?,?,?,?,?,?,?)').run(e.app,e.title,e.category,ts,ts,POLL_INTERVAL_SEC,Number(!!e.isIdle));} return db.prepare('SELECT * FROM sessions ORDER BY id DESC LIMIT 1').get();}
-function getSummary(date=todayKey()){const rows=db.prepare("SELECT * FROM sessions WHERE date(start_time,'localtime')=? ORDER BY id DESC").all(date); const total=rows.reduce((a,r)=>a+r.duration_sec,0); const idle=rows.filter(r=>r.is_idle).reduce((a,r)=>a+r.duration_sec,0); const summary={}; rows.forEach(r=>summary[r.category]=(summary[r.category]||0)+r.duration_sec); const topApps=db.prepare("SELECT app_name app,SUM(duration_sec) durationSec FROM sessions WHERE date(start_time,'localtime')=? GROUP BY app_name ORDER BY durationSec DESC LIMIT 5").all(date); return {date,totalSessions:rows.length,totalDurationSec:total,idleDurationSec:idle,productiveDurationSec:total-idle,summary,topApps,rows};}
-function getWeekSummary(){return db.prepare("SELECT category, ROUND(SUM(duration_sec)/60) minutes FROM sessions WHERE date(start_time)>=date('now','-6 day') GROUP BY category ORDER BY minutes DESC").all();}
-function getGoals(){return db.prepare('SELECT * FROM goals ORDER BY id DESC').all();}
-function saveGoal(week_start,category,target_minutes){return db.prepare('INSERT INTO goals(week_start,category,target_minutes) VALUES (?,?,?)').run(week_start,category,target_minutes);}
-module.exports={POLL_INTERVAL_SEC,dbFile,upsert,getSummary,getWeekSummary,getGoals,saveGoal,todayKey};
+const rootDir = process.cwd();
+const dataDir = path.join(rootDir, "data");
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+const dbFile = path.join(dataDir, "tracker.sqlite");
+const schemaFile = path.join(rootDir, "packages", "db", "schema.sql");
+const db = new Database(dbFile);
+db.pragma("journal_mode = WAL");
+db.exec(fs.readFileSync(schemaFile, "utf8"));
+function todayKey(now = new Date()) {
+  return now.toISOString().slice(0, 10);
+}
+function upsert(e) {
+  const ts = (e.ts || new Date()).toString
+    ? new Date(e.ts || new Date()).toISOString()
+    : new Date().toISOString();
+  const last = db
+    .prepare("SELECT * FROM sessions ORDER BY id DESC LIMIT 1")
+    .get();
+  if (
+    last &&
+    last.app_name === e.app &&
+    last.window_title === e.title &&
+    last.category === e.category &&
+    last.is_idle === Number(!!e.isIdle)
+  ) {
+    const dur = Math.max(
+      POLL_INTERVAL_SEC,
+      Math.round((new Date(ts) - new Date(last.start_time)) / 1000),
+    );
+    db.prepare("UPDATE sessions SET end_time=?, duration_sec=? WHERE id=?").run(
+      ts,
+      dur,
+      last.id,
+    );
+  } else {
+    db.prepare(
+      "INSERT INTO sessions(app_name,window_title,category,start_time,end_time,duration_sec,is_idle) VALUES (?,?,?,?,?,?,?)",
+    ).run(
+      e.app,
+      e.title,
+      e.category,
+      ts,
+      ts,
+      POLL_INTERVAL_SEC,
+      Number(!!e.isIdle),
+    );
+  }
+  return db.prepare("SELECT * FROM sessions ORDER BY id DESC LIMIT 1").get();
+}
+function getSummary(date = todayKey()) {
+  const rows = db
+    .prepare(
+      "SELECT * FROM sessions WHERE date(start_time,'localtime')=? ORDER BY id DESC",
+    )
+    .all(date);
+  const total = rows.reduce((a, r) => a + r.duration_sec, 0);
+  const idle = rows
+    .filter((r) => r.is_idle)
+    .reduce((a, r) => a + r.duration_sec, 0);
+  const summary = {};
+  rows.forEach(
+    (r) => (summary[r.category] = (summary[r.category] || 0) + r.duration_sec),
+  );
+  const topApps = db
+    .prepare(
+      "SELECT app_name app,SUM(duration_sec) durationSec FROM sessions WHERE date(start_time,'localtime')=? GROUP BY app_name ORDER BY durationSec DESC LIMIT 5",
+    )
+    .all(date);
+  return {
+    date,
+    totalSessions: rows.length,
+    totalDurationSec: total,
+    idleDurationSec: idle,
+    productiveDurationSec: total - idle,
+    summary,
+    topApps,
+    rows,
+  };
+}
+function getWeekSummary() {
+  return db
+    .prepare(
+      "SELECT category, ROUND(SUM(duration_sec)/60) minutes FROM sessions WHERE date(start_time)>=date('now','-6 day') GROUP BY category ORDER BY minutes DESC",
+    )
+    .all();
+}
+function getGoals() {
+  return db.prepare("SELECT * FROM goals ORDER BY id DESC").all();
+}
+function saveGoal(week_start, category, target_minutes) {
+  return db
+    .prepare(
+      "INSERT INTO goals(week_start,category,target_minutes) VALUES (?,?,?)",
+    )
+    .run(week_start, category, target_minutes);
+}
+module.exports = {
+  POLL_INTERVAL_SEC,
+  dbFile,
+  upsert,
+  getSummary,
+  getWeekSummary,
+  getGoals,
+  saveGoal,
+  todayKey,
+};

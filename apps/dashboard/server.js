@@ -1,5 +1,46 @@
-const http=require('http');
-const {getSummary,getWeekSummary,getGoals,saveGoal,todayKey}=require('../../packages/db/sessionStore');
-function json(res,s,p){res.writeHead(s,{'Content-Type':'application/json'});res.end(JSON.stringify(p,null,2));}
-function html(res,body){res.writeHead(200,{'Content-Type':'text/html'});res.end(body);}
-http.createServer((req,res)=>{const u=new URL(req.url,'http://localhost:3000'); if(u.pathname==='/health') return json(res,200,{ok:true}); if(u.pathname==='/api/today') return json(res,200,getSummary()); if(u.pathname==='/api/week') return json(res,200,getWeekSummary()); if(u.pathname==='/api/goals'&&req.method==='GET') return json(res,200,getGoals()); if(u.pathname==='/api/goals'&&req.method==='POST'){let b='';req.on('data',c=>b+=c);req.on('end',()=>{const x=JSON.parse(b||'{}');saveGoal(x.week_start||todayKey(),x.category||'Coding',Number(x.target_minutes||300));json(res,200,{ok:true});}); return;} const s=getSummary(); const w=getWeekSummary(); html(res,`<html><body style="font-family:Arial;padding:20px"><h1>Auto Tracker Dashboard</h1><h2>Today</h2><p>Productive: ${Math.round(s.productiveDurationSec/60)} mins | Idle: ${Math.round(s.idleDurationSec/60)} mins</p><h3>Top Apps</h3><ul>${s.topApps.map(a=>`<li>${a.app}: ${Math.round(a.durationSec/60)} mins</li>`).join('')}</ul><h2>Week</h2><ul>${w.map(r=>`<li>${r.category}: ${r.minutes} mins</li>`).join('')}</ul></body></html>`)}).listen(3000,()=>console.log('Dashboard on http://localhost:3000'));
+const http = require("http");
+const {
+  getSummary,
+  getWeekSummary,
+  getGoals,
+  saveGoal,
+  todayKey,
+} = require("../../packages/db/sessionStore");
+function json(res, s, p) {
+  res.writeHead(s, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(p, null, 2));
+}
+function html(res, body) {
+  res.writeHead(200, { "Content-Type": "text/html" });
+  res.end(body);
+}
+http
+  .createServer((req, res) => {
+    const u = new URL(req.url, "http://localhost:3000");
+    if (u.pathname === "/health") return json(res, 200, { ok: true });
+    if (u.pathname === "/api/today") return json(res, 200, getSummary());
+    if (u.pathname === "/api/week") return json(res, 200, getWeekSummary());
+    if (u.pathname === "/api/goals" && req.method === "GET")
+      return json(res, 200, getGoals());
+    if (u.pathname === "/api/goals" && req.method === "POST") {
+      let b = "";
+      req.on("data", (c) => (b += c));
+      req.on("end", () => {
+        const x = JSON.parse(b || "{}");
+        saveGoal(
+          x.week_start || todayKey(),
+          x.category || "Coding",
+          Number(x.target_minutes || 300),
+        );
+        json(res, 200, { ok: true });
+      });
+      return;
+    }
+    const s = getSummary();
+    const w = getWeekSummary();
+    html(
+      res,
+      `<html><body style="font-family:Arial;padding:20px"><h1>Auto Tracker Dashboard</h1><h2>Today</h2><p>Productive: ${Math.round(s.productiveDurationSec / 60)} mins | Idle: ${Math.round(s.idleDurationSec / 60)} mins</p><h3>Top Apps</h3><ul>${s.topApps.map((a) => `<li>${a.app}: ${Math.round(a.durationSec / 60)} mins</li>`).join("")}</ul><h2>Week</h2><ul>${w.map((r) => `<li>${r.category}: ${r.minutes} mins</li>`).join("")}</ul></body></html>`,
+    );
+  })
+  .listen(3000, () => console.log("Dashboard on http://localhost:3000"));
